@@ -1,0 +1,14 @@
+{
+  "name": "parcel-issue-typescript-5-decorators",
+  "version": "0.0.0",
+  "scripts": {
+    "start": "parcel serve index.html",
+    "build-and-serve": "parcel build index.html && serve dist"
+  },
+  "devDependencies": {
+    "@parcel/transformer-typescript-tsc": "^2.8.3",
+    "parcel": "^2.8.3",
+    "serve": "^14.2.0",
+    "typescript": "^5.0.4"
+  }
+}
