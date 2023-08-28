@@ -6,9 +6,9 @@
     "build-and-serve": "parcel build index.html && serve dist"
   },
   "devDependencies": {
-    "@parcel/transformer-typescript-tsc": "^2.8.3",
-    "parcel": "^2.8.3",
-    "serve": "^14.2.0",
-    "typescript": "^5.0.4"
+    "@parcel/transformer-typescript-tsc": "^2.9.3",
+    "parcel": "^2.9.3",
+    "serve": "^14.2.1",
+    "typescript": "^5.2.2"
   }
 }

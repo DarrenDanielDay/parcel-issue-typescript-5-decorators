@@ -1,6 +1,6 @@
 # 🐛 bug report
 
-The ECMA Decorators introduced in TypeScript 5.0 crashes in production build with optimization enabled.
+The decorator metadata introduced in TypeScript 5.2 crashes in production build with optimization enabled. Perhaps same issue with #8989.
 
 ## 🎛 Configuration (.babelrc, package.json, cli command)
 
@@ -27,23 +27,25 @@ The decorators code in production build runs into the following error:
 
 ```txt
 Uncaught TypeError: Function expected
-    at s (index.61afe2c3.js:1:121)
-    at __esDecorate (index.61afe2c3.js:1:831)
-    at index.ts:11:1
-    at index.61afe2c3.js:1:1354
-    at index.ts:11:7
+    at r (index.0cb3d518.js:1:110)
+    at e (index.0cb3d518.js:1:811)
+    at index.0cb3d518.js:2:358
+    at index.0cb3d518.js:2:539
+    at index.0cb3d518.js:2:545
 ```
 
 ## 💁 Possible Solution
 
-It's possibly a bug of the optimizer. It seems the optimizer will omit class private static field initialization, leaving it as a simple `arrow function IIFE`, and `this` context in arrow function will be scoped to `wnidow`.
+See below.
 
 ```js
 // part of code in parcel serve
+Symbol.metadata ??= Symbol("Symbol.metadata");
 const CustomElement = (tag)=>{
     return (ctor, context)=>{
         context.addInitializer(function() {
             customElements.define(tag, this);
+            console.log("metadata:", context.metadata);
         });
         return ctor;
     };
@@ -55,16 +57,27 @@ let A = (()=>{
     let _classDescriptor;
     let _classExtraInitializers = [];
     let _classThis;
-    var A = class extends HTMLElement {
+    let _classSuper = HTMLElement;
+    var A = class extends _classSuper {
         static #_ = (()=>{
-//      ^^^^^^^^^ seems to be removed in optimized code
+            _classThis = this;
+        })();
+        static #_1 = (()=>{
+            const _metadata = typeof Symbol === "function" && Symbol.metadata ? Object.create(_classSuper[Symbol.metadata] ?? null) : void 0;
             __esDecorate(null, _classDescriptor = {
-                value: this
+                value: _classThis
             }, _classDecorators, {
                 kind: "class",
-                name: this.name
+                name: _classThis.name,
+                metadata: _metadata
             }, null, _classExtraInitializers);
             A = _classThis = _classDescriptor.value;
+            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, {
+                enumerable: true,
+                configurable: true,
+                writable: true,
+                value: _metadata
+            });
             __runInitializers(_classThis, _classExtraInitializers);
         })();
         constructor(){
@@ -79,38 +92,41 @@ console.log(new A().tagName);
 
 ```js
 // part of code in parcel build
-const CustomElement = e=>(t,n)=>(n.addInitializer((function() {
-    customElements.define(e, this)
-}
-)),
-t);
-let A = (()=>{
-    let e, t, n = [CustomElement("component-a")], i = [];
-    HTMLElement,
-//  ^^^^^^^^^^^ Is it "class extends HTMLElement"? Even the entire class body has been omitted...
-    (()=>{
-        __esDecorate(null, e = {
-            value: this
-//                 ^^^^ "this" is the window object, leading to the error
-        }, n, {
-            kind: "class",
-            name: this.name
-        }, null, i),
-        t = e.value,
-        __runInitializers(t, i)
-    }
-    )();
-    return t
-}
-)();
-console.log((new A).tagName);
+Symbol.metadata ??= Symbol("Symbol.metadata");
+const a = (e) => (t, a) => (
+  a.addInitializer(function () {
+    customElements.define(e, this), console.log("metadata:", a.metadata);
+  }),
+  t
+);
+console.log(
+  new ((() => {
+    let n,
+      o,
+      i = [a("component-a")],
+      r = [],
+      l = HTMLElement;
+    // also missing class body and `this` context for class static initializers
+    return (
+      (() => {
+        o = this;
+      })(),
+      (() => {
+        let a = "function" == typeof Symbol && Symbol.metadata ? Object.create(l[Symbol.metadata] ?? null) : void 0;
+        e(null, (n = { value: o }), i, { kind: "class", name: o.name, metadata: a }, null, r),
+          (o = n.value),
+          a && Object.defineProperty(o, Symbol.metadata, { enumerable: !0, configurable: !0, writable: !0, value: a }),
+          t(o, r);
+      })(),
+      o
+    );
+  })())().tagName
+);
 ```
 
 ## 🔦 Context
 
-I'm trying to use the ECMA Decorators introduced in TypeScript 5.0 with parcel. It seems parcel does not support new decorators in TypeScript 5.0 currently, so I added `@parcel/transformer-typescript-tsc` for the decorator syntax without `experimentalDecorators` enabled.
-
-It works well with `parcel serve`, but the code in production build crashes when optimization is enabled (by default). I tried to disable optimization with `--no-optimize`, and the code in production build worked well, but publishing build without optimization is discouraged.
+Same behavior with #8989 but with different versions of `parcel` and `typescript`.
 
 ## 💻 Code Sample
 
@@ -120,7 +136,7 @@ It works well with `parcel serve`, but the code in production build crashes when
 
 | Software         | Version(s) |
 | ---------------- | ---------- |
-| Parcel           | 2.8.3
+| Parcel           | 2.9.3
 | Node             | 18.12.1
 | npm/Yarn         | 9.1.2
 | Operating System | Windows 10
